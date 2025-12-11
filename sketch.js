@@ -1,95 +1,91 @@
 let song;
 let fft;
 
-function setup() {
-  createCanvas(800, 400);
-  fft = new p5.FFT();
-  rectMode(CORNERS);
+const NUM_BARS = 32;
+const BLOCK_H = 6;
+const BAR_W = 10;
 
-  document.getElementById("audioFile").onchange = handleFile;
+function preload() {
+  song = loadSound("2024.mp3");
+}
+
+function setup() {
+  createCanvas(900, 450);
+  fft = new p5.FFT(0.9, 128);
+  createButtons();
 }
 
 function draw() {
-  background(10);
+  background(0);
+  drawEQ();
+  drawCenterEffect();
+}
 
-  if (!song) {
-    fill(255);
-    text("노래를 선택해주세요", 20, 30);
-    return;
-  }
-
+function drawEQ() {
   let spectrum = fft.analyze();
 
-  let barsPerSide = 20;
-  let totalBars = barsPerSide * 2;
-  let barWidth = (width / 2) / barsPerSide; 
-  let blockSize = 6;
+  let leftStart = width * 0.25;
+  let rightStart = width * 0.75;
 
-  // LEFT SIDE
-  for (let i = 0; i < barsPerSide; i++) {
+  for (let i = 0; i < NUM_BARS; i++) {
 
-    let specIndex = floor(map(i, 0, barsPerSide, 0, spectrum.length));
-    let amp = spectrum[specIndex];
-    let h = map(amp, 0, 255, 0, height * 0.9);
-    let blocks = floor(h / blockSize);
+    let idx = floor(map(i, 0, NUM_BARS, 0, spectrum.length));
+    let amp = spectrum[idx];
 
-    // 왼쪽 끝부터 안쪽으로 X좌표 이동
-    let xCenter = width / 2;
-    let x1 = xCenter - (i + 1) * barWidth;
-    let x2 = x1 + barWidth * 0.8;
+    let h = map(amp, 0, 255, 0, height * 0.7);
 
-    let hue = map(i, 0, barsPerSide, 300, 330);
 
-    for (let b = 0; b < blocks; b++) {
-      let y1 = height - b * blockSize;
-      let y2 = y1 - blockSize + 1;
+    let boost = map(abs(i - NUM_BARS/2), 0, NUM_BARS/2, 1.2, 0.4);
+    h *= boost;
 
-      fill(hue, 80, 100);
-      noStroke();
-      drawingContext.shadowBlur = 10;
-      drawingContext.shadowColor = color(hue, 80, 100, 0.8);
+    let blocks = floor(h / BLOCK_H);
 
-      rect(x1, y1, x2, y2);
-    }
-  }
-
-  // -------------------------
-  // RIGHT SIDE  → → →
-  // -------------------------
-  for (let i = 0; i < barsPerSide; i++) {
-
-    let specIndex = floor(map(i, 0, barsPerSide, 0, spectrum.length));
-    let amp = spectrum[specIndex];
-    let h = map(amp, 0, 255, 0, height * 0.9);
-    let blocks = floor(h / blockSize);
-
-    // 오른쪽 끝부터 안쪽으로 X좌표 이동
-    let xCenter = width / 2;
-    let x1 = xCenter + (i + 1) * barWidth;
-    let x2 = x1 + barWidth * 0.8;
-
-    let hue = map(i, 0, barsPerSide, 300, 330);
-
-    for (let b = 0; b < blocks; b++) {
-      let y1 = height - b * blockSize;
-      let y2 = y1 - blockSize + 1;
-
-      fill(hue, 80, 100);
-      noStroke();
-      drawingContext.shadowBlur = 10;
-      drawingContext.shadowColor = color(hue, 80, 100, 0.8);
-
-      rect(x1, y1, x2, y2);
-    }
+    drawBar(leftStart - i * BAR_W, blocks);
+    drawBar(rightStart + i * BAR_W, blocks);
   }
 }
 
-function handleFile(e) {
-  let file = e.target.files[0];
-  if (song) song.stop();
 
-  song = loadSound(URL.createObjectURL(file), () => {
-    fft.setInput(song);
-    song.play();
-  });
+function drawCenterEffect() {
+  push();
+  let cx = width / 2;
+  let cy = height / 2;
+
+  noStroke();
+  for (let i = 0; i < 60; i++) {
+
+    let x = cx + random(-40, 40);
+    let y = cy + random(-80, 80);
+
+    fill( random(150,255), random(50,150), random(200,255), random(40,120) );
+    rect(x, y, random(2,5), random(2,5));
+  }
+  pop();
+}
+
+
+function drawBar(x, blocks) {
+  for (let j = 0; j < blocks; j++) {
+    let c = color(200 + j * 2, 50, 255 - j * 5);
+    fill(c);
+    noStroke();
+
+    drawingContext.shadowBlur = 10;
+    drawingContext.shadowColor = c;
+
+    let y = height - j * BLOCK_H;
+    rect(x, y, BAR_W * 0.8, -BLOCK_H);
+  }
+}
+
+
+function createButtons() {
+  let playBtn = createButton("▶ Play");
+  playBtn.mousePressed(() => song.play());
+
+  let pauseBtn = createButton("⏸ Pause");
+  pauseBtn.mousePressed(() => song.pause());
+
+  let stopBtn = createButton("⏹ Stop");
+  stopBtn.mousePressed(() => song.stop());
 }
