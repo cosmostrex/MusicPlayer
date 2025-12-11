@@ -1,91 +1,104 @@
 let song;
 let fft;
-
-const NUM_BARS = 32;
-const BLOCK_H = 6;
-const BAR_W = 10;
+let amplitude;
 
 function preload() {
   song = loadSound("2024.mp3");
 }
 
 function setup() {
-  createCanvas(900, 450);
+  createCanvas(900, 500);
+  angleMode(DEGREES);
+  colorMode(HSB);
+  noStroke();
+
   fft = new p5.FFT(0.9, 128);
-  createButtons();
+  amplitude = new p5.Amplitude();
 }
 
 function draw() {
-  background(0);
-  drawEQ();
-  drawCenterEffect();
-}
+  drawGradientBackground();
 
-function drawEQ() {
   let spectrum = fft.analyze();
+  let level = amplitude.getLevel();
+  let pulse = map(level, 0, 0.3, 0.95, 1.10);
+  let timeHue = frameCount % 360;
 
-  let leftStart = width * 0.25;
-  let rightStart = width * 0.75;
-
-  for (let i = 0; i < NUM_BARS; i++) {
-
-    let idx = floor(map(i, 0, NUM_BARS, 0, spectrum.length));
-    let amp = spectrum[idx];
-
-    let h = map(amp, 0, 255, 0, height * 0.7);
-
-
-    let boost = map(abs(i - NUM_BARS/2), 0, NUM_BARS/2, 1.2, 0.4);
-    h *= boost;
-
-    let blocks = floor(h / BLOCK_H);
-
-    drawBar(leftStart - i * BAR_W, blocks);
-    drawBar(rightStart + i * BAR_W, blocks);
-  }
-}
-
-
-function drawCenterEffect() {
   push();
-  let cx = width / 2;
-  let cy = height / 2;
-
-  noStroke();
-  for (let i = 0; i < 60; i++) {
-
-    let x = cx + random(-40, 40);
-    let y = cy + random(-80, 80);
-
-    fill( random(150,255), random(50,150), random(200,255), random(40,120) );
-    rect(x, y, random(2,5), random(2,5));
-  }
+  translate(150, 0);
+  drawEQ(spectrum, timeHue, false);
+  pop();
+  
+  push();
+  translate(width - 150, 0);
+  drawEQ(spectrum, timeHue, true);
+  pop();
+  
+  push();
+  translate(width / 2, height / 2);
+  scale(pulse);
+  drawDotRings(spectrum, timeHue);
   pop();
 }
 
-
-function drawBar(x, blocks) {
-  for (let j = 0; j < blocks; j++) {
-    let c = color(200 + j * 2, 50, 255 - j * 5);
-    fill(c);
-    noStroke();
-
-    drawingContext.shadowBlur = 10;
-    drawingContext.shadowColor = c;
-
-    let y = height - j * BLOCK_H;
-    rect(x, y, BAR_W * 0.8, -BLOCK_H);
+function drawGradientBackground() {
+  for (let y = 0; y < height; y++) {
+    let t = y / height;
+    stroke(lerp(230, 260, t), 38, lerp(10, 18, t));
+    line(0, y, width, y);
   }
 }
 
+function drawEQ(spectrum, timeHue, reverse = false) {
+  let barCount = 25;
+  let barW = 10;
 
-function createButtons() {
-  let playBtn = createButton("▶ Play");
-  playBtn.mousePressed(() => song.play());
+  for (let i = 0; i < barCount; i++) {
+    let index = reverse
+      ? floor(map(i, 0, barCount, spectrum.length - 1, 0))
+      : floor(map(i, 0, barCount, 0, spectrum.length - 1));
 
-  let pauseBtn = createButton("⏸ Pause");
-  pauseBtn.mousePressed(() => song.pause());
+    let amp = spectrum[index];
+    let hueValue = (timeHue + i * 8) % 360;
 
-  let stopBtn = createButton("⏹ Stop");
-  stopBtn.mousePressed(() => song.stop());
+    let blockHeight = 7;
+    let blocks = floor(map(amp, 0, 255, 0, 22));
+
+    for (let j = 0; j < blocks; j++) {
+      fill(hueValue, 80, 95);
+      rect(i * barW - (barCount * barW) / 2, height - j * blockHeight - 50, barW * 0.8, -blockHeight);
+    }
+  }
+}
+
+function drawDotRings(spectrum, timeHue) {
+  const rings = 6;            // 동심원 개수
+  const baseRadius = 40;      // 가장 안쪽 원 반지름
+  const radiusGap = 22;       // 각 원 사이 간격
+  const dotSize = 6;          // 도트 크기 (작게!)
+  
+  for (let r = 0; r < rings; r++) {
+    let radius = baseRadius + r * radiusGap;
+    let count = floor(20 + r * 8); // 바깥쪽으로 갈수록 점 개수 증가
+
+    for (let i = 0; i < count; i++) {
+      let angle = map(i, 0, count, 0, 360);
+      let idx = floor(map(angle, 0, 360, 0, spectrum.length - 1));
+
+      let amp = spectrum[idx];
+      let offset = map(amp, 0, 255, 0, 10); // 반응하는 흔들림
+
+      let x = (radius + offset) * cos(angle);
+      let y = (radius + offset) * sin(angle);
+
+      let hueValue = (timeHue + angle) % 360;
+
+      fill(hueValue, 80, 100);
+      ellipse(x, y, dotSize, dotSize);
+    }
+  }
+}
+
+function mousePressed() {
+  if (!song.isPlaying()) song.play();
 }
