@@ -3,6 +3,7 @@ let titles = [];   // 제목 저장 배열
 let songIndex = 0;
 let fft;
 let amplitude;
+let volumeSlider;   // 볼륨 슬라이더
 
 let isPlaying = false;
 let nowPlayingLabel;
@@ -40,7 +41,12 @@ function setup() {
   amplitude = new p5.Amplitude();
 
   createPlayerButtons();
-  createNowPlayingLabel();   // 현재 곡 제목 표시 UI 생성
+  createNowPlayingLabel();
+
+  // 볼륨 슬라이더 생성
+  volumeSlider = createSlider(0, 1, 0.5, 0.01);
+  volumeSlider.position(width / 2 - 75, height - 75);  // 하단 중앙
+  volumeSlider.style("width", "150px");
 }
 
 // 파일 선택 input 제거
@@ -119,6 +125,7 @@ function nextSong() {
   stopAllSongs();
   songIndex = (songIndex + 1) % songs.length;
   songs[songIndex].play();
+  songs[songIndex].setVolume(volumeSlider.value());
   isPlaying = true;
 
   updateNowPlaying();  // 제목 갱신
@@ -129,6 +136,7 @@ function prevSong() {
   stopAllSongs();
   songIndex = (songIndex - 1 + songs.length) % songs.length;
   songs[songIndex].play();
+  songs[songIndex].setVolume(volumeSlider.value());
   isPlaying = true;
 
   updateNowPlaying();  // 제목 갱신
@@ -144,6 +152,11 @@ function stopAllSongs() {
 // DRAW
 
 function draw() {
+
+  // 슬라이더 볼륨값 항상 반영
+  let vol = volumeSlider.value();
+  songs[songIndex].setVolume(vol);
+
   drawGradientBackground();
 
   let spectrum = fft.analyze();
